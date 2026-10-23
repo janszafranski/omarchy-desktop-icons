@@ -189,7 +189,20 @@ overlay bind in step 5.
 there is no separate wallpaper client. The grid renders above it and receives
 its clicks — verified live, not assumed — because within a layer Hyprland
 stacks by creation order and the grid starts later. Start your shell first, the
-grid second.
+grid second. Two full-screen surfaces coexisting on `bottom`, grid second:
+
+```
+$ hyprctl layers
+	Layer level 1 (bottom):
+		Layer ...da80: xywh: 0 0 3440 1440, namespace: quickshell:background,  pid: 5623
+		Layer ...0010: xywh: 0 0 3440 1440, namespace: omarchy-desktop-icons,  pid: 40232
+```
+
+**`hyprctl dispatch` takes Lua here, not the classic syntax.** On a Lua-configured
+Hyprland (end-4, and current Omarchy master) `hyprctl dispatch exec foo` fails
+with `')' expected near ...`; it wants `hyprctl dispatch 'hl.dsp.exec_cmd("foo")'`.
+`Apps.qml` tries the classic form first and falls back to the Lua one, so
+`Open on new workspace` works on both. Worth knowing if you script against it.
 
 ## The config file
 
@@ -236,8 +249,17 @@ means "use the app's own name".
 ## Other things it does
 
 - **Middle-click** an icon to open it on a fresh, empty workspace.
-- Colours for the menus follow your Omarchy theme
-  (`~/.config/omarchy/current/theme`) when there is one.
+- Colours for the menus follow your desktop theme, trying three sources in
+  order and stopping at the first that exists:
+
+  | # | Source | Gives |
+  | --- | --- | --- |
+  | 1 | `~/.config/omarchy/current/theme` | `light.mode` → light/dark, `col.active_border` from `hyprland.conf` → accent |
+  | 2 | `~/.local/state/quickshell/user/generated/material_colors.scss` (end-4) | `$darkmode`, `$primary`, `$surfaceContainer`, `$onSurface` |
+  | 3 | built-in defaults | dark, accent `#7aa2f7` |
+
+  Icon *labels* deliberately ignore all of this — they are always white on a
+  soft shadow, because they sit on your wallpaper, not on the UI.
 - Icons that your icon theme doesn't have fall back to a coloured tile with the
   app's first letter, rather than a broken-image square.
 
@@ -267,6 +289,33 @@ means "use the app's own name".
   the wallpaper layer.
 - `Open on new workspace` needs `hyprctl`, so it's Hyprland-only. Everything
   else works on any wlroots compositor with layer-shell.
+
+## What has actually been tested
+
+Everything below was driven on a live **Hyprland 0.56.2 + end-4
+illogical-impulse** desktop (3440x1440). **No part of this has run on a real
+Omarchy box yet** — Omarchy-specific behaviour is coded defensively and
+fixture-tested, but Miya is the first person to exercise it for real.
+
+**Verified live:** grid on the shared `bottom` layer above end-4's wallpaper,
+including pointer routing; double-click launch (detached — survives the shell
+dying); single-click select; drag-to-reposition with grid snap and persistence;
+both context menus and the icon-size submenu; Escape and click-away dismissal;
+the searchable `Add app…` picker; rename and remove; live icon resizing; atomic
+config writes and `Reload config`; the overlay mode over IPC; middle-click to a
+new workspace.
+
+**Verified against fixtures, not a real box:** the theme chain above. All three
+tiers were exercised — tier 1 against synthetic Omarchy theme directories (dark
+and light), tier 2 against a real end-4 `material_colors.scss`, tier 3 with
+both absent — and tier 1 correctly wins when both are present. The Omarchy
+fixtures match the documented `light.mode` / `col.active_border` convention, but
+a genuine Omarchy theme may still surprise it.
+
+**Not verified at all:** *drag-and-drop to add an icon*. The `DropArea` is
+written and reviewed but no Wayland drag source was available to script against
+it, so dragging a `.desktop` file from a file manager onto the grid is the one
+feature you should expect to find broken. Please report it if it is.
 
 ## For the curious: how it's built
 
