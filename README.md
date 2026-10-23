@@ -159,6 +159,38 @@ autostart line you added in step 4.
 
 ---
 
+## Running it on end-4 / illogical-impulse (not Omarchy)
+
+v1 was developed and tested on **Hyprland 0.56.2 + end-4 illogical-impulse**,
+so this path is the *more* tested of the two. Four differences:
+
+**Run it without installing anything.** From a checkout:
+
+```bash
+qs -p /path/to/omarchy-desktop-icons          # start
+qs -p /path/to/omarchy-desktop-icons kill     # stop
+qs list --all                                 # confirm your own shell is untouched
+```
+
+Quickshell identifies an instance by its **config path**, so this is a separate
+instance from your end-4 shell. Never run a bare `qs kill` — that takes your
+bar, dock and wallpaper with it.
+
+**The first column lands under your bar.** end-4 reserves roughly the left
+506px. In `~/.config/omarchy-desktop-icons/config.json`, set
+`geometry.margins.left` to about `560`, or set `geometry.anchor` to
+`"top-right"`.
+
+**`SUPER+I` is already end-4's Settings app.** Use `SUPER+SHIFT+I` for the
+overlay bind in step 5.
+
+**The bottom layer is shared, and it works.** end-4 paints its wallpaper as a
+`bottom`-layer surface (`quickshell:background`) covering the whole screen;
+there is no separate wallpaper client. The grid renders above it and receives
+its clicks — verified live, not assumed — because within a layer Hyprland
+stacks by creation order and the grid starts later. Start your shell first, the
+grid second.
+
 ## The config file
 
 Everything lives in one hand-editable file:
@@ -224,10 +256,12 @@ means "use the app's own name".
 - **One monitor.** The grid is drawn on one screen (`geometry.screen`, default:
   the first one). Showing the same icons on every monitor would be confusing,
   and per-monitor layouts aren't in this version.
-- **Another wallpaper-layer app can steal the clicks.** The grid lives on the
+- **Another wallpaper-layer app shares the layer.** The grid lives on the
   `bottom` layer-shell layer. Stock Omarchy puts nothing there, so it's yours.
-  Some other setups (notably the end-4/illogical-impulse dotfiles) draw their
-  wallpaper there and can intercept clicks on empty desktop.
+  Some setups (notably the end-4/illogical-impulse dotfiles) draw their
+  wallpaper there too — in practice that works, see below, but a wallpaper
+  client started *after* the grid would end up on top of it and swallow clicks.
+  Start the grid last.
 - **Escape and arrow keys only work in the right-click menu**, which gets its
   own surface for exactly that reason — Hyprland never gives keyboard focus to
   the wallpaper layer.
