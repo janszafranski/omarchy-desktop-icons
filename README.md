@@ -362,10 +362,12 @@ editing `config.json` by hand reflowed the live grid without a restart. Also
 `toggle` **from cold** — with nothing running it starts the app and raises the
 overlay, leaving exactly one instance, so `Quit` is no longer a one-way door.
 
-**Rendered but not yet clicked:** the `Quit ›` flyout. It draws correctly with
-its two caption rows and hovering the parent row opens it, but nobody has
-clicked `Quit now` itself — the flat `Quit` it replaced did work. Note the
-flyout is mouse-only: the arrow keys walk the top-level rows, so `Quit now`
+And the whole `Quit` round trip: the `Quit ›` flyout opens on hover, `Quit now`
+ends the process, and `omarchy-desktop-icons toggle` then brings the grid back
+with every icon where it was.
+
+**Known gap:** the flyout is mouse-only. The arrow keys walk the top-level
+rows, and `Return` on a row that owns a submenu does nothing, so `Quit now`
 has no keyboard route.
 
 **Verified against fixtures, not a real box:** the Omarchy tier of the theme
