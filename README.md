@@ -117,7 +117,7 @@ nothing appears after a reboot, use option A instead and turn this one off:
 systemctl --user disable --now omarchy-desktop-icons
 ```
 
-## 5. Optional: SUPER+I to bring the icons to the front
+## 5. Recommended: a key to bring the icons to the front
 
 Because Omarchy tiles windows full-screen, the desktop is usually covered. You
 can bind a key that puts the same grid on top of everything with a dimmed
@@ -126,31 +126,54 @@ away) to dismiss it.
 
 ![The same grid in overlay mode, dimmed over whatever is on screen](docs/screenshot-overlay.png)
 
-**First check the key is free on your machine:**
+> **This program binds nothing.** It never edits your Hyprland config, so
+> **no key does anything until you add one of the lines below yourself.** It is
+> worth doing: the overlay key is also how you get the icons back if you ever
+> pick **Quit** from the right-click menu.
+
+**First check the key is free on your machine.** This prints every existing bind
+on the `I` key — one line per bind, nothing if the key is unused:
 
 ```bash
+hyprctl binds -j | jq -r '.[] | select((.key|ascii_downcase)=="i") | "modmask=\(.modmask) \(.key) -> \(.dispatcher) \(.arg)"'
+# Omarchy only, same thing:
 omarchy menu keybindings --print | grep -i ' I$'
-# or:
-hyprctl binds -j | jq -r '.[] | select((.key|ascii_downcase)=="i") | "\(.modmask) \(.key) -> \(.dispatcher) \(.arg)"'
 ```
 
-Omarchy 3 uses SUPER+CTRL+I but leaves plain SUPER+I free. If the command above
-prints nothing for a bare SUPER, you're fine.
+`modmask` is a bitmask: SUPER is 64, SHIFT is 1, so `modmask=64` means SUPER+I
+is taken and `modmask=65` means SUPER+SHIFT+I is taken. Pick a combination that
+does not appear. Stock Omarchy 3 uses SUPER+CTRL+I and leaves plain SUPER+I
+free; **end-4 / illogical-impulse takes SUPER+I for its Settings app, so use
+SUPER+SHIFT+I there** (see the end-4 section below).
 
-**Lua config** (`~/.config/hypr/bindings.lua`):
+Then add the line for your config flavour — and reload Hyprland (or log out and
+back in) afterwards, or the bind will not exist yet.
+
+**Omarchy Lua config** (`~/.config/hypr/bindings.lua`):
 
 ```lua
 o.bind("SUPER + I", "Desktop icons", "omarchy-desktop-icons toggle")
 ```
 
-**Older `.conf`** (`~/.config/hypr/bindings.conf`):
+**Plain Hyprland `.conf`** (`~/.config/hypr/hyprland.conf`, or your
+`bindings.conf`):
 
 ```ini
 bind = SUPER, I, exec, omarchy-desktop-icons toggle
 ```
 
-This talks to the program that is already running — it never starts a second
-copy.
+**end-4 / illogical-impulse Lua** (`~/.config-ii/hypr/hyprland/keybinds.lua`):
+
+```lua
+hl.bind("SUPER + SHIFT + I", hl.dsp.exec_cmd("omarchy-desktop-icons toggle"), { description = "Desktop icons" })
+```
+
+Confirm it took with the `hyprctl binds` command above — your new modmask
+should now be listed.
+
+`toggle` talks to the copy that is already running, so it never starts a second
+one. If nothing is running (you quit it, or it crashed) it starts one and shows
+the overlay, so the key always works.
 
 ## 6. Remove it all again
 
@@ -188,8 +211,18 @@ will sit over your icons. If you usually keep it open, set
 `geometry.margins.left` to about `830`, or set `geometry.anchor` to
 `"top-right"` and forget about it.
 
-**`SUPER+I` is already end-4's Settings app.** Use `SUPER+SHIFT+I` for the
-overlay bind in step 5.
+**`SUPER+I` is already end-4's Settings app, so bind `SUPER+SHIFT+I` instead.**
+Verified on a live end-4 session: `hyprctl binds` lists `modmask=64 key=I`
+(SUPER alone) and nothing on `modmask=65` (SUPER+SHIFT). Nothing is bound to
+either by this program — you have to add it. In
+`~/.config-ii/hypr/hyprland/keybinds.lua`:
+
+```lua
+hl.bind("SUPER + SHIFT + I", hl.dsp.exec_cmd("omarchy-desktop-icons toggle"), { description = "Desktop icons" })
+```
+
+If you skip this step, `SUPER+SHIFT+I` does nothing at all — it is an unbound
+key, not a broken app.
 
 **The bottom layer is shared, and it works.** end-4 paints its wallpaper as a
 `bottom`-layer surface (`quickshell:background`) covering the whole screen;
@@ -286,7 +319,9 @@ means "use the app's own name".
 | Symptom | Fix |
 | --- | --- |
 | `command not found` | See the `$PATH` note in step 1. |
-| Nothing appears | You're probably looking at a workspace with a window on it. Switch to an empty one, or set up SUPER+I (step 5). |
+| Nothing appears | You're probably looking at a workspace with a window on it. Switch to an empty one, or set up the overlay key (step 5). |
+| I picked **Quit** and want it back | Press your overlay key (step 5), or run `omarchy-desktop-icons toggle`. Either one starts it again if it isn't running. |
+| My overlay key does nothing | Nothing is bound until you add it yourself — step 5. Check with `hyprctl binds -j \| jq -r '.[] \| select((.key\|ascii_downcase)=="i")'`. |
 | Icons appear but clicks do nothing | Something else is sitting on the wallpaper layer. See "Known limitations". |
 | An icon is blank with a letter in it | Your icon theme has no icon for that app. Set `"icon"` yourself in the config. |
 | It won't start | Run `omarchy-desktop-icons` in a terminal and read the error. |
@@ -323,7 +358,15 @@ the searchable `Add app…` picker; rename and remove; live icon resizing; atomi
 config writes and `Reload config`; the overlay mode over IPC; middle-click to a
 new workspace. Also: a **plain file item** (`"exec": "xdg-open '…/README.md'"`,
 no `desktop_id`) double-clicked open in the system's default handler, and
-editing `config.json` by hand reflowed the live grid without a restart.
+editing `config.json` by hand reflowed the live grid without a restart. Also
+`toggle` **from cold** — with nothing running it starts the app and raises the
+overlay, leaving exactly one instance, so `Quit` is no longer a one-way door.
+
+**Rendered but not yet clicked:** the `Quit ›` flyout. It draws correctly with
+its two caption rows and hovering the parent row opens it, but nobody has
+clicked `Quit now` itself — the flat `Quit` it replaced did work. Note the
+flyout is mouse-only: the arrow keys walk the top-level rows, so `Quit now`
+has no keyboard route.
 
 **Verified against fixtures, not a real box:** the Omarchy tier of the theme
 chain above. All three tiers were exercised — tier 1 against synthetic Omarchy

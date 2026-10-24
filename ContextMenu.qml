@@ -11,8 +11,9 @@ import Quickshell.Wayland
 //
 // `entries` is an array of:
 //   { label, action }                         - a normal row
-//   { label, submenu: [...] }                 - a flyout
+//   { label, submenu: [...], submenuWidth }   - a flyout (width optional)
 //   { label, action, checked: bool }          - a radio/check row
+//   { label, info: true }                     - dim, unclickable caption
 //   { separator: true }
 PanelWindow {
     id: root
@@ -48,8 +49,14 @@ PanelWindow {
         openSubmenu = -1;
     }
 
+    // Separators and captions are decoration: not clickable, not reachable
+    // with the arrow keys.
+    function selectable(entry) {
+        return entry !== undefined && !entry.separator && entry.info !== true;
+    }
+
     function trigger(entry) {
-        if (!entry || entry.separator || entry.submenu) return;
+        if (!selectable(entry) || entry.submenu) return;
         close();
         if (entry.action) entry.action();
     }
@@ -77,14 +84,14 @@ PanelWindow {
     }
 
     function nextSelectable(from) {
-        for (let i = from + 1; i < entries.length; i++) if (!entries[i].separator) return i;
-        for (let i = 0; i <= from; i++) if (!entries[i].separator) return i;
+        for (let i = from + 1; i < entries.length; i++) if (selectable(entries[i])) return i;
+        for (let i = 0; i <= from; i++) if (selectable(entries[i])) return i;
         return from;
     }
 
     function prevSelectable(from) {
-        for (let i = from - 1; i >= 0; i--) if (!entries[i].separator) return i;
-        for (let i = entries.length - 1; i >= from && i >= 0; i--) if (!entries[i].separator) return i;
+        for (let i = from - 1; i >= 0; i--) if (selectable(entries[i])) return i;
+        for (let i = entries.length - 1; i >= from && i >= 0; i--) if (selectable(entries[i])) return i;
         return from;
     }
 
@@ -114,8 +121,10 @@ PanelWindow {
                     required property var modelData
                     required property int index
 
+                    readonly property bool isInfo: modelData.info === true
+
                     width: column.width
-                    height: modelData.separator ? 7 : 28
+                    height: modelData.separator ? 7 : (isInfo ? 20 : 28)
 
                     Rectangle {
                         visible: row.modelData.separator === true
@@ -126,7 +135,7 @@ PanelWindow {
                     }
 
                     Rectangle {
-                        visible: !row.modelData.separator
+                        visible: !row.modelData.separator && !row.isInfo
                         anchors.fill: parent
                         anchors.margins: 3
                         anchors.topMargin: 0
@@ -142,8 +151,8 @@ PanelWindow {
                         width: parent.width - 34
                         elide: Text.ElideMiddle
                         text: (row.modelData.checked ? "● " : "") + (row.modelData.label ?? "")
-                        color: Theme.surfaceText
-                        font.pixelSize: 13
+                        color: row.isInfo ? Theme.surfaceTextDim : Theme.surfaceText
+                        font.pixelSize: row.isInfo ? 11 : 13
                     }
 
                     Text {
@@ -159,7 +168,7 @@ PanelWindow {
                     MouseArea {
                         anchors.fill: parent
                         hoverEnabled: true
-                        enabled: !row.modelData.separator
+                        enabled: root.selectable(row.modelData)
                         onEntered: {
                             root.current = row.index;
                             root.openSubmenu = row.modelData.submenu !== undefined ? row.index : -1;
@@ -175,7 +184,7 @@ PanelWindow {
                         visible: root.openSubmenu === row.index
                         x: panel.width - 6
                         y: -4
-                        width: 160
+                        width: row.modelData.submenuWidth ?? 160
                         height: subColumn.implicitHeight + 10
                         radius: 10
                         color: Theme.surface
@@ -193,10 +202,21 @@ PanelWindow {
                                 Item {
                                     id: subRow
                                     required property var modelData
+                                    readonly property bool isInfo: modelData.info === true
+
                                     width: subColumn.width
-                                    height: 28
+                                    height: modelData.separator ? 7 : (isInfo ? 20 : 28)
 
                                     Rectangle {
+                                        visible: subRow.modelData.separator === true
+                                        anchors.centerIn: parent
+                                        width: parent.width - 20
+                                        height: 1
+                                        color: Theme.surfaceBorder
+                                    }
+
+                                    Rectangle {
+                                        visible: root.selectable(subRow.modelData)
                                         anchors.fill: parent
                                         anchors.margins: 3
                                         anchors.topMargin: 0
@@ -206,17 +226,21 @@ PanelWindow {
                                     }
 
                                     Text {
+                                        visible: !subRow.modelData.separator
                                         anchors.verticalCenter: parent.verticalCenter
                                         x: 14
+                                        width: parent.width - 20
+                                        elide: Text.ElideRight
                                         text: (subRow.modelData.checked ? "● " : "") + subRow.modelData.label
-                                        color: Theme.surfaceText
-                                        font.pixelSize: 13
+                                        color: subRow.isInfo ? Theme.surfaceTextDim : Theme.surfaceText
+                                        font.pixelSize: subRow.isInfo ? 11 : 13
                                     }
 
                                     MouseArea {
                                         id: subMouse
                                         anchors.fill: parent
                                         hoverEnabled: true
+                                        enabled: root.selectable(subRow.modelData)
                                         onClicked: root.trigger(subRow.modelData)
                                     }
                                 }

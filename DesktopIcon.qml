@@ -108,21 +108,28 @@ Item {
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
 
-        property real pressX: 0
-        property real pressY: 0
+        // Press point in *window* coordinates. It has to be a frame that does
+        // not move with the item: the grid binds the icon's x/y to the drag
+        // displacement, so a delta taken from event.x (which is relative to
+        // this already-displaced MouseArea) feeds back on itself and the icon
+        // trails the cursor instead of following it.
+        property real pressWinX: 0
+        property real pressWinY: 0
         property bool moved: false
 
         onPressed: event => {
-            pressX = event.x;
-            pressY = event.y;
+            const p = mouse.mapToItem(null, event.x, event.y);
+            pressWinX = p.x;
+            pressWinY = p.y;
             moved = false;
             if (event.button === Qt.LeftButton) root.selectRequested();
         }
 
         onPositionChanged: event => {
             if (!(pressedButtons & Qt.LeftButton)) return;
-            const dx = event.x - pressX;
-            const dy = event.y - pressY;
+            const p = mouse.mapToItem(null, event.x, event.y);
+            const dx = p.x - pressWinX;
+            const dy = p.y - pressWinY;
             if (!moved && Math.hypot(dx, dy) < 6) return;
             moved = true;
             root.dragMoved(dx, dy);

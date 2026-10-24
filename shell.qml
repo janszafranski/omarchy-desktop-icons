@@ -8,8 +8,11 @@ import Quickshell.Wayland
 // Two surfaces over one grid:
 //   desktop  wlr-layer-shell `bottom`  - above the wallpaper, below every
 //                                        window. Always there.
-//   overlay  wlr-layer-shell `top`     - SUPER+I, for when windows cover the
-//                                        desktop (i.e. most of the time).
+//   overlay  wlr-layer-shell `top`     - for when windows cover the desktop
+//                                        (i.e. most of the time). Shown by
+//                                        `omarchy-desktop-icons toggle`; the
+//                                        user binds that to a key themselves,
+//                                        we never write a keybind.
 ShellRoot {
     id: shell
 
@@ -45,7 +48,16 @@ ShellRoot {
             { label: "Reload config", action: () => { Config.reload(); Theme.reload(); } },
             { label: "Edit config…", action: () => shell.editConfig() },
             { separator: true },
-            { label: "Quit", action: () => Qt.quit() }
+            // Behind a flyout on purpose. There is no tray icon and no taskbar
+            // entry, so quitting is not obviously undoable — the submenu makes
+            // it a two-step and says how to get the icons back before you
+            // commit to it.
+            { label: "Quit", submenuWidth: 250, submenu: [
+                { label: "Quit now", action: () => Qt.quit() },
+                { separator: true },
+                { label: "Get it back with your icons key,", info: true },
+                { label: "or: omarchy-desktop-icons", info: true }
+            ] }
         ];
     }
 
@@ -114,7 +126,7 @@ ShellRoot {
         }
     }
 
-    // --- overlay surface (top layer, SUPER+I) ------------------------------
+    // --- overlay surface (top layer, `toggle`) -----------------------------
 
     PanelWindow {
         id: overlay
@@ -183,7 +195,9 @@ ShellRoot {
     // --- IPC ---------------------------------------------------------------
     //
     // `omarchy-desktop-icons toggle` calls into the running instance over
-    // Quickshell's socket in $XDG_RUNTIME_DIR. Nothing is ever relaunched.
+    // Quickshell's socket in $XDG_RUNTIME_DIR, so it never starts a second
+    // copy. (If there is no instance at all the wrapper script starts one
+    // first — see `ensure_running` in bin/omarchy-desktop-icons.)
     IpcHandler {
         target: "desktop"
 

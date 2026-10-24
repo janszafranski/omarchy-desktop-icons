@@ -2,7 +2,7 @@ import QtQuick
 import Quickshell
 
 // The grid itself. Fills whatever surface it is put in (bottom layer on the
-// desktop, or the SUPER+I overlay) and lays icons out in cells from the
+// desktop, or the user-bound overlay) and lays icons out in cells from the
 // configured corner.
 Item {
     id: root
@@ -34,14 +34,19 @@ Item {
         return fromTop ? margins.top + row * cellH : height - margins.bottom - (row + 1) * cellH;
     }
 
+    // Which cell *contains* this point, counted from the anchored corner.
+    // Floor, not round: callers pass either a bare click position (the cell you
+    // clicked in) or a dragged icon's centre (the cell it is sitting over).
+    // Rounding instead made both land a whole cell further out, because a
+    // centre is already half a cell past the icon's own corner.
     function colAt(x) {
-        const c = fromLeft ? (x - margins.left) / cellW : (width - margins.right - x) / cellW - 1;
-        return Math.max(0, Math.round(c));
+        const d = fromLeft ? x - margins.left : (width - margins.right) - x;
+        return Math.max(0, Math.floor(d / cellW));
     }
 
     function rowAt(y) {
-        const r = fromTop ? (y - margins.top) / cellH : (height - margins.bottom - y) / cellH - 1;
-        return Math.max(0, Math.min(rows - 1, Math.round(r)));
+        const d = fromTop ? y - margins.top : (height - margins.bottom) - y;
+        return Math.max(0, Math.min(rows - 1, Math.floor(d / cellH)));
     }
 
     function clearSelection() { selectedIndex = -1; }
@@ -67,7 +72,9 @@ Item {
                 const path = decodeURIComponent(String(url).replace(/^file:\/\//, ""));
                 const item = Apps.itemFromFile(path);
                 if (!item) continue;
-                item.cell = root.placeAt(x + root.cellW / 2, y + root.cellH / 2, -1);
+                // The cell under the pointer. (Untested: no scriptable Wayland
+                // drag source to drive this with.)
+                item.cell = root.placeAt(x, y, -1);
                 Config.addItem(item);
                 y += root.cellH; // stack multiple drops down the column
             }

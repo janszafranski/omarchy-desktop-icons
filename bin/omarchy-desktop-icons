@@ -3,7 +3,8 @@
 #
 #   omarchy-desktop-icons           start it (stays in the foreground)
 #   omarchy-desktop-icons start     same
-#   omarchy-desktop-icons toggle    show/hide the SUPER+I overlay
+#   omarchy-desktop-icons toggle    show/hide the overlay; starts it if stopped
+#   omarchy-desktop-icons open      show the overlay; starts it if stopped
 #   omarchy-desktop-icons stop      quit the running instance
 #   omarchy-desktop-icons status    is it running?
 #   omarchy-desktop-icons edit      open the config in $EDITOR
@@ -18,16 +19,51 @@ if ! command -v qs >/dev/null 2>&1; then
     exit 1
 fi
 
+running() { qs -p "$APPDIR" ipc show >/dev/null 2>&1; }
+
+# True if ensure_running had to cold-start the instance.
+cold_started=0
+
+# `toggle` and `open` are IPC calls into a running instance, so on their own
+# they can't recover from the right-click menu's Quit — and with no tray icon
+# or taskbar entry that would leave a terminal as the only way back. Start one
+# if there isn't one.
+ensure_running() {
+    running && return 0
+    setsid qs -p "$APPDIR" --no-duplicate >/dev/null 2>&1 &
+    cold_started=1
+    for _ in $(seq 50); do
+        running && return 0
+        sleep 0.1
+    done
+    echo "omarchy-desktop-icons: started it, but it never answered on IPC." >&2
+    echo "  Run 'omarchy-desktop-icons' in a terminal to see the error." >&2
+    return 1
+}
+
 case "${1:-start}" in
     start)  exec qs -p "$APPDIR" --no-duplicate ;;
-    toggle) exec qs -p "$APPDIR" ipc call desktop toggle ;;
-    open)   exec qs -p "$APPDIR" ipc call desktop open ;;
+    toggle)
+        ensure_running
+        # A cold start already draws the grid on the desktop, but that is the
+        # bottom layer and usually covered. Show the overlay so the keystroke
+        # always does something visible.
+        if [ "$cold_started" = 1 ]; then
+            exec qs -p "$APPDIR" ipc call desktop open
+        else
+            exec qs -p "$APPDIR" ipc call desktop toggle
+        fi
+        ;;
+    open)
+        ensure_running
+        exec qs -p "$APPDIR" ipc call desktop open
+        ;;
     close)  exec qs -p "$APPDIR" ipc call desktop close ;;
     reload) exec qs -p "$APPDIR" ipc call desktop reload ;;
     stop)   exec qs -p "$APPDIR" kill ;;
     edit)   exec "${VISUAL:-${EDITOR:-nano}}" "$CONFIG" ;;
     status)
-        if qs -p "$APPDIR" ipc show >/dev/null 2>&1; then
+        if running; then
             echo "running (config: $CONFIG)"
         else
             echo "not running"
