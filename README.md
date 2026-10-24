@@ -62,6 +62,8 @@ from another one.
 Right-click anywhere on the empty wallpaper → **Add app…** → start typing the
 name of the app → press Enter. The icon appears where you right-clicked.
 
+![The Add app… picker, filtered](docs/screenshot-add-app.png)
+
 You can also **drag a `.desktop` file** (or any file or folder) from your file
 manager onto the desktop and it becomes an icon.
 
@@ -122,6 +124,8 @@ can bind a key that puts the same grid on top of everything with a dimmed
 background, like the Windows Start screen. Press it again (or Escape, or click
 away) to dismiss it.
 
+![The same grid in overlay mode, dimmed over whatever is on screen](docs/screenshot-overlay.png)
+
 **First check the key is free on your machine:**
 
 ```bash
@@ -176,10 +180,13 @@ Quickshell identifies an instance by its **config path**, so this is a separate
 instance from your end-4 shell. Never run a bare `qs kill` — that takes your
 bar, dock and wallpaper with it.
 
-**The first column lands under your bar.** end-4 reserves roughly the left
-506px. In `~/.config/omarchy-desktop-icons/config.json`, set
-`geometry.margins.left` to about `560`, or set `geometry.anchor` to
-`"top-right"`.
+**Give the first column some left margin.** Measured on a 3440x1440 end-4
+session: the vertical bar is 69px wide and reserves 46px, so
+`geometry.margins.left` of about `110` clears it. The *left sidebar*
+(`SUPER + A`) is a different thing — when it is open it covers x 46–806, and it
+will sit over your icons. If you usually keep it open, set
+`geometry.margins.left` to about `830`, or set `geometry.anchor` to
+`"top-right"` and forget about it.
 
 **`SUPER+I` is already end-4's Settings app.** Use `SUPER+SHIFT+I` for the
 overlay bind in step 5.
@@ -202,7 +209,18 @@ $ hyprctl layers
 Hyprland (end-4, and current Omarchy master) `hyprctl dispatch exec foo` fails
 with `')' expected near ...`; it wants `hyprctl dispatch 'hl.dsp.exec_cmd("foo")'`.
 `Apps.qml` tries the classic form first and falls back to the Lua one, so
-`Open on new workspace` works on both. Worth knowing if you script against it.
+`Open on new workspace` works on both. Worth knowing if you script against it —
+the same applies to anything else you dispatch. Switching workspace, for
+instance:
+
+```bash
+hyprctl dispatch workspace 3                      # classic — fails on a Lua config
+hyprctl dispatch 'hl.dsp.focus({ workspace = 3 })'  # Lua form
+```
+
+Note the dispatchers are nested tables, so `hl.dsp.workspace(3)` is not it;
+`hl.dispatch: expected a dispatcher (e.g. hl.dsp.window.close())` is the error
+you get when you guess wrong.
 
 ## The config file
 
@@ -303,14 +321,18 @@ dying); single-click select; drag-to-reposition with grid snap and persistence;
 both context menus and the icon-size submenu; Escape and click-away dismissal;
 the searchable `Add app…` picker; rename and remove; live icon resizing; atomic
 config writes and `Reload config`; the overlay mode over IPC; middle-click to a
-new workspace.
+new workspace. Also: a **plain file item** (`"exec": "xdg-open '…/README.md'"`,
+no `desktop_id`) double-clicked open in the system's default handler, and
+editing `config.json` by hand reflowed the live grid without a restart.
 
-**Verified against fixtures, not a real box:** the theme chain above. All three
-tiers were exercised — tier 1 against synthetic Omarchy theme directories (dark
-and light), tier 2 against a real end-4 `material_colors.scss`, tier 3 with
-both absent — and tier 1 correctly wins when both are present. The Omarchy
-fixtures match the documented `light.mode` / `col.active_border` convention, but
-a genuine Omarchy theme may still surprise it.
+**Verified against fixtures, not a real box:** the Omarchy tier of the theme
+chain above. All three tiers were exercised — tier 1 against synthetic Omarchy
+theme directories (dark and light), tier 2 against a real end-4
+`material_colors.scss`, tier 3 with both absent — and tier 1 correctly wins when
+both are present. Tier 2 has since also been confirmed *on screen*: on an end-4
+session with `$darkmode: False` the menus render light, matching the shell.
+The Omarchy fixtures match the documented `light.mode` / `col.active_border`
+convention, but a genuine Omarchy theme may still surprise it.
 
 **Not verified at all:** *drag-and-drop to add an icon*. The `DropArea` is
 written and reviewed but no Wayland drag source was available to script against
